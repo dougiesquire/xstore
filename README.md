@@ -6,6 +6,8 @@ Example usage:
 import xarray as xr
 import xcache as xc
 
+xc.CACHE_DIRECTORY = '/scratch/v14/ds0092/.xcache/'
+
 da = xr.DataArray(np.random.normal(size=(180,360)),             
                   coords=[('lat', np.arange(-90,90,1)),
                           ('lon', np.arange(-280,80,1))]).rename('test')

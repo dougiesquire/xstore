@@ -109,8 +109,8 @@ class XCacheAccessor:
 
         name = self._obj.name if self._obj.name else '_cached_variable'
         return _cache(self._obj.to_dataset(name=name), file_name=file_name, clobber=clobber, file_format=file_format)[name]
-    
-    
+
+
 @xr.register_dataset_accessor("xc")
 class XCacheAccessor:
     def __init__(self, xarray_obj):
