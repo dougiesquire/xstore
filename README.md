@@ -5,12 +5,13 @@ Example usage:
 ```
 import xarray as xr
 import xcache as xc
+import dask.array as da
 
 xc.CACHE_DIRECTORY = '/scratch/v14/ds0092/.xcache/'
 
-da = xr.DataArray(np.random.normal(size=(180,360)),             
-                  coords=[('lat', np.arange(-90,90,1)),
-                          ('lon', np.arange(-280,80,1))]).rename('test')
+da = xr.DataArray(da.random.random((10000, 10000), chunks=(1000, 1000)),
+                  coords=[('a', range(10000)),
+                          ('b', range(10000))]).rename('test')
 
 # Do lots of operations to da building a very large dask graph
 
