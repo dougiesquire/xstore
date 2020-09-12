@@ -47,14 +47,17 @@ def _cache(obj, file_name=None, clobber=False, file_format='zarr_DS'):
     
     os.makedirs(CACHE_DIRECTORY, exist_ok=True)
     
+    for var in obj.variables:
+        obj[var].encoding = {}
+    
     if file_name is None:
         file_name = uuid.uuid4().hex
-        if file_format == 'zarr_DS':
-            file_name = file_name+os.path.extsep+'zarr'
-        elif file_format == 'zarr_ZS':
-            file_name = file_name+os.path.extsep+'zip'
-        elif file_format == 'netcdf':
-            file_name = file_name+os.path.extsep+'nc'
+    if (file_format == 'zarr_DS') & (not file_name.endswith(os.path.extsep+'zarr')):
+        file_name = file_name+os.path.extsep+'zarr'
+    elif (file_format == 'zarr_ZS') & (not file_name.endswith(os.path.extsep+'zip')):
+        file_name = file_name+os.path.extsep+'zip'
+    elif (file_format == 'netcdf') & (not file_name.endswith(os.path.extsep+'nc')):
+        file_name = file_name+os.path.extsep+'nc'
         
     cache_file = os.path.join(CACHE_DIRECTORY, file_name)    
 
