@@ -4,7 +4,7 @@ import shutil
 import zipfile
 import xarray as xr
 
-STORE_DIRECTORY = '/scratch/v14/ds0092/.xstore/'
+STORE_DIRECTORY = None
 
 
 def _zip_zarr(zarr_DS, delete_DS=True):
@@ -45,7 +45,10 @@ def _store(obj, file_name=None, clobber=False, file_format='zarr_DS'):
             Same data as input, but now read directly from disk
     """
     
-    os.makedirs(STORE_DIRECTORY, exist_ok=True)
+    if STORE_DIRECTORY == None:
+        raise ValueError('Please provide a store directory by setting the xstore.STORE_DIRECTORY attribute')
+    else:
+        os.makedirs(STORE_DIRECTORY, exist_ok=True)
     
     for var in obj.variables:
         obj[var].encoding = {}
