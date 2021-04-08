@@ -4,7 +4,7 @@ import shutil
 import zipfile
 import xarray as xr
 
-CACHE_DIRECTORY = '/scratch/v14/ds0092/.xcache/'
+STORE_DIRECTORY = '/scratch/v14/ds0092/.xstore/'
 
 
 def _zip_zarr(zarr_DS, delete_DS=True):
@@ -23,20 +23,20 @@ def _zip_zarr(zarr_DS, delete_DS=True):
         shutil.rmtree(zarr_DS)
                 
                 
-def _cache(obj, file_name=None, clobber=False, file_format='zarr_DS'):
+def _store(obj, file_name=None, clobber=False, file_format='zarr_DS'):
     """
         Write an xarray object to disk and read it back
         
         Parameters
         ----------
         obj : xarray DataArray or Dataset
-            data to cache and read back
+            data to store and read back
         file_name : str, optional
             Name of file to write to disk. If not given, a random name will be generated
         clobber : boolean, optional
             If True, replace file if it already exists
         file_format : string, optional
-            file format of the cached data. Options are 'zarr_DS' (zarr DirectoryStore), \
+            file format of the stored data. Options are 'zarr_DS' (zarr DirectoryStore), \
             'zarr_ZS' (zarr ZipStore), 'netcdf'
 
         Returns
@@ -45,10 +45,12 @@ def _cache(obj, file_name=None, clobber=False, file_format='zarr_DS'):
             Same data as input, but now read directly from disk
     """
     
-    os.makedirs(CACHE_DIRECTORY, exist_ok=True)
+    os.makedirs(STORE_DIRECTORY, exist_ok=True)
     
     for var in obj.variables:
         obj[var].encoding = {}
+    
+    obj = obj.unify_chunks()
     
     if file_name is None:
         file_name = uuid.uuid4().hex
@@ -59,49 +61,49 @@ def _cache(obj, file_name=None, clobber=False, file_format='zarr_DS'):
     elif (file_format == 'netcdf') & (not file_name.endswith(os.path.extsep+'nc')):
         file_name = file_name+os.path.extsep+'nc'
         
-    cache_file = os.path.join(CACHE_DIRECTORY, file_name)    
+    store_file = os.path.join(STORE_DIRECTORY, file_name)    
 
     if file_format == 'zarr_DS':
-        if (not os.path.exists(cache_file)) | clobber==True:
-            obj.to_zarr(cache_file, mode='w', consolidated=True, compute=True)
-        return xr.open_zarr(cache_file, consolidated=True)
+        if (not os.path.exists(store_file)) | clobber==True:
+            obj.to_zarr(store_file, mode='w', consolidated=True, compute=True)
+        return xr.open_zarr(store_file, consolidated=True)
     elif file_format == 'zarr_ZS':
-        if (os.path.splitext(cache_file)[-1] != os.path.extsep+'zip'):
-            tmp_file = cache_file
-            cache_file = cache_file+os.path.extsep+'zip'
+        if (os.path.splitext(store_file)[-1] != os.path.extsep+'zip'):
+            tmp_file = store_file
+            store_file = store_file+os.path.extsep+'zip'
         else:
-            tmp_file = cache_file.strip(os.path.extsep+'zip')
-        if (not os.path.exists(cache_file)) | clobber==True:
+            tmp_file = store_file.strip(os.path.extsep+'zip')
+        if (not os.path.exists(store_file)) | clobber==True:
             obj.to_zarr(tmp_file, mode='w', consolidated=True, compute=True)
             _zip_zarr(tmp_file, delete_DS=True)
-        return xr.open_zarr(cache_file, consolidated=True)
+        return xr.open_zarr(store_file, consolidated=True)
     elif file_format == 'netcdf':
-        if (not os.path.exists(cache_file)) | clobber==True:
-            obj.to_netcdf(cache_file, mode='w')
-        return xr.open_dataset(cache_file, chunks={})
+        if (not os.path.exists(store_file)) | clobber==True:
+            obj.to_netcdf(store_file, mode='w')
+        return xr.open_dataset(store_file, chunks={})
     else:
         raise ValueError("Unrecognised file_format. Options are 'zarr_DS', 'zarr_ZS' and 'netcdf'")
         
         
-@xr.register_dataarray_accessor("xc")
+@xr.register_dataarray_accessor("xst")
 class XCacheAccessor:
     def __init__(self, xarray_obj):
         self._obj = xarray_obj
         
-    def cache(self, file_name=None, clobber=False, file_format='zarr_DS'):
+    def store(self, file_name=None, clobber=False, file_format='zarr_DS'):
         """
             Write an xarray object to disk and read it back
 
             Parameters
             ----------
             obj : xarray DataArray or Dataset
-                data to cache and read back
+                data to store and read back
             file_name : str, optional
                 Name of file to write to disk. If not given, a random name will be generated
             clobber : boolean, optional
                 If True, replace file if it already exists
             file_format : string, optional
-                file format of the cached data. Options are 'zarr_DS' (zarr DirectoryStore), \
+                file format of the stored data. Options are 'zarr_DS' (zarr DirectoryStore), \
                 'zarr_ZS' (zarr ZipStore), 'netcdf'
 
             Returns
@@ -110,29 +112,29 @@ class XCacheAccessor:
                 Same data as input, but now read directly from disk
         """
 
-        name = self._obj.name if self._obj.name else '_cached_variable'
-        return _cache(self._obj.to_dataset(name=name), file_name=file_name, clobber=clobber, file_format=file_format)[name]
+        name = self._obj.name if self._obj.name else '_stored_variable'
+        return _store(self._obj.to_dataset(name=name), file_name=file_name, clobber=clobber, file_format=file_format)[name]
 
 
-@xr.register_dataset_accessor("xc")
+@xr.register_dataset_accessor("xst")
 class XCacheAccessor:
     def __init__(self, xarray_obj):
         self._obj = xarray_obj
         
-    def cache(self, file_name=None, clobber=False, file_format='zarr_DS'):
+    def store(self, file_name=None, clobber=False, file_format='zarr_DS'):
         """
             Write an xarray object to disk and read it back
 
             Parameters
             ----------
             obj : xarray DataArray or Dataset
-                data to cache and read back
+                data to store and read back
             file_name : str, optional
                 Name of file to write to disk. If not given, a random name will be generated
             clobber : boolean, optional
                 If True, replace file if it already exists
             file_format : string, optional
-                file format of the cached data. Options are 'zarr_DS' (zarr DirectoryStore), \
+                file format of the stored data. Options are 'zarr_DS' (zarr DirectoryStore), \
                 'zarr_ZS' (zarr ZipStore), 'netcdf'
 
             Returns
@@ -141,4 +143,4 @@ class XCacheAccessor:
                 Same data as input, but now read directly from disk
         """
 
-        return _cache(self._obj, file_name=file_name, clobber=clobber, file_format=file_format)
+        return _store(self._obj, file_name=file_name, clobber=clobber, file_format=file_format)
